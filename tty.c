@@ -13,6 +13,7 @@
 #include "ioconf.h"
 #include "tty_public.h"
 #include "tty.h"
+#include "queue/queue.h" /* import queue data structure */
 
 struct tty ttytab[NTTYS];        /* software params/data for each SLU dev */
 
