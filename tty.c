@@ -30,21 +30,26 @@ extern void irq3inthand(void), irq4inthand(void);
 /* C part of interrupt handlers--specific names called by the assembler code */
 extern void irq3inthandc(void), irq4inthandc(void); 
 
-/* the common code for the two interrupt handlers */                           static void irqinthandc(int dev);
+/* the common code for the two interrupt handlers */                           
+static void irqinthandc(int dev);
 
 /* prototype for debug_log */ 
 void debug_log(char *);
 
 /*====================================================================
-*
-*       tty specific initialization routine for COM devices
-*
-*/
+*       tty specific initialization routine for COM devices         *
+====================================================================*/
+
 
 void ttyinit(int dev)
 {
   int baseport;
   struct tty *tty;		/* ptr to tty software params/data block */
+  Queue RX_queue, TX_queue;
+  
+  /* Need to initialize a Queue */
+  init_queue(&RX_queue, MAXBUF);
+  init_queue(&TX_queue, MAXBUF);
 
   debug_record = debug_log_area; /* clear debug log */
   baseport = devtab[dev].dvbaseport; /* pick up hardware addr */
@@ -63,12 +68,15 @@ void ttyinit(int dev)
       return;			/* give up */
   }
   tty->echoflag = 1;		/* default to echoing */
-  tty->rin = 0;               /* initialize indices */
-  tty->rout = 0;
-  tty->rnum = 0;              /* initialize counter */
-  tty->tin = 0;               /* initialize indices */
-  tty->tout = 0;
-  tty->tnum = 0;              /* initialize counter */
+  
+  //no need for ring buffer anymore
+
+  // tty->rin = 0;               /* initialize indices */
+  // tty->rout = 0;
+  // tty->rnum = 0;              /* initialize counter */
+  // tty->tin = 0;               /* initialize indices */
+  // tty->tout = 0;
+  // tty->tnum = 0;              /* initialize counter */ 
 
   /* enable interrupts on receiver */
   outpt(baseport+UART_IER, UART_IER_RDI); /* RDI = receiver data int */
@@ -76,25 +84,21 @@ void ttyinit(int dev)
 
 
 /*====================================================================
-*
-*       Useful function when emptying/filling the read/write buffers
-*
-*/
+*   Useful function when emptying/filling the read/write buffers  *
+====================================================================*/
 
 #define min(x,y) (x < y ? x : y)
 
 
 /*====================================================================
-*
 *       tty-specific read routine for TTY devices
-*
-*/
+====================================================================*/*/
 
 int ttyread(int dev, char *buf, int nchar)
 {
   int baseport;
   struct tty *tty;
-  int i, copychars;
+  int i, q;
 
   char log[BUFLEN];
   int saved_eflags;        /* old cpu control/status reg, so can restore it */
@@ -102,22 +106,21 @@ int ttyread(int dev, char *buf, int nchar)
   baseport = devtab[dev].dvbaseport; /* hardware addr from devtab */
   tty = (struct tty *)devtab[dev].dvdata;   /* software data for line */
 
-  copychars = min(nchar, tty->rnum);      /* chars to copy from buffer */
-  for (i = 0; i < copychars; i++) {
+  /* In this function we are reading items off the Q */
+  for (i = 0; i < nchars; i++) {
     saved_eflags = get_eflags();
     cli();			/* disable ints in CPU */
-    buf[i] = tty -> rbuf[tty -> rout++];      /* copy from ibuf to user buf */
+    if((q = dequeue(&RX_queue)) != EMPTYQUE){
+      buf[i] = q;
+    }
     sprintf(log, ">%c", buf[i]);
     debug_log(log);
-    tty -> rnum--;                          /* decrement count */
-    if (tty -> rout >= MAXBUF) tty -> rout = 0;
     set_eflags(saved_eflags);     /* back to previous CPU int. status */
   }
 
-  return copychars;       /* but should wait for rest of nchar chars if nec. */
+  return nchars;       /* but should wait for rest of nchar chars if nec. */
   /* this is something for you to correct */
 }
-
 
 /*====================================================================
 *
@@ -126,19 +129,24 @@ int ttyread(int dev, char *buf, int nchar)
 *        it still gives you a hint as to what needs to be done for
 *        the interrupt-driven case)
 *
-*/
+====================================================================*/
 
 int ttywrite(int dev, char *buf, int nchar)
 {
   int baseport;
   struct tty *tty;
-  int i;
+  int i, q;
   char log[BUFLEN];
 
   baseport = devtab[dev].dvbaseport; /* hardware addr from devtab */
   tty = (struct tty *)devtab[dev].dvdata;   /* software data for line */
 
   for (i = 0; i < nchar; i++) {
+    //enqueue returns FULLQUE if queue is full
+    q = enqueue(&TX_queue, buf[i]);
+    if(q != FULLQUE){
+        //take a byte from buf and enquete in TX
+    }
     sprintf(log,"<%c", buf[i]); /* record input char-- */
     debug_log(log);
     tty -> tbuf[tty -> tin++] = buf[i];
@@ -150,10 +158,8 @@ int ttywrite(int dev, char *buf, int nchar)
 }
 
 /*====================================================================
-*
 *       tty-specific control routine for TTY devices
-*
-*/
+====================================================================*/
 
 int ttycontrol(int dev, int fncode, int val)
 {
@@ -165,16 +171,13 @@ int ttycontrol(int dev, int fncode, int val)
   return 0;
 }
 
-
-
 /*====================================================================
-*
 *       tty-specific interrupt routine for COM ports
 *
 *   Since interrupt handlers don't have parameters, we have two different
 *   handlers.  However, all the common code has been placed in a helper 
 *   function.
-*/
+====================================================================*/
   
 void irq4inthandc()
 {
