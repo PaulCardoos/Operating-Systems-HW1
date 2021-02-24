@@ -213,20 +213,21 @@ void irqinthandc(int dev){
 
   pic_end_int();                /* notify PIC that its part is done */
   debug_log("*");
-
-  if (iir & UART_IIR_RDI) {
-    ch = inpt(baseport+UART_RX);
-    enqueue(&RX_queue, ch); // add to input queue
-    if (tty->echoflag) enqueue(&ECHO_queue, ch); // add to echo queue
-  }
-
-  if (iir & UART_IIR_THRI) {
-    // check echo queue and echo characters on TX ISR
-    if (queuecount(&ECHO_queue)) outpt(baseport+UART_TX, dequeue(&ECHO_queue));
-    if (queuecount(&TX_queue)) {
-      ch = dequeue(&TX_queue);
-      outpt(baseport+UART_TX, ch);
-    }
+  switch (iir & UART_IIR_ID) {
+    case UART_IIR_RDI:
+      ch = inpt(baseport+UART_RX);
+      enqueue(&RX_queue, ch); // add to input queue
+      if (tty->echoflag) enqueue(&ECHO_queue, ch); // add to echo queue
+    case UART_IIR_THRI:
+      if (queuecount(&ECHO_queue))
+        outpt(baseport+UART_TX, dequeue(&ECHO_queue));
+      if (queuecount(&TX_queue)) {
+        ch = dequeue(&TX_queue);
+        outpt(baseport+UART_TX, ch);
+      }
+        break;
+    default:
+      debug_log("#");
   }
   outpt(baseport+UART_IER, UART_IER_RDI);
   /* enable receiver interrupts again*/
