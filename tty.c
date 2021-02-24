@@ -77,15 +77,6 @@ void ttyinit(int dev)
   }
   tty->echoflag = 1;		/* default to echoing */
 
-  //no need for ring buffer anymore
-
-  // tty->rin = 0;               /* initialize indices */
-  // tty->rout = 0;
-  // tty->rnum = 0;              /* initialize counter */
-  // tty->tin = 0;               /* initialize indices */
-  // tty->tout = 0;
-  // tty->tnum = 0;              /* initialize counter */
-
   /* enable interrupts on receiver */
   outpt(baseport+UART_IER, UART_IER_RDI); /* RDI = receiver data int */
 }
