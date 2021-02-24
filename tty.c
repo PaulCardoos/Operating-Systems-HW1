@@ -89,28 +89,27 @@ int ttyread(int dev, char *buf, int nchar)
 {
   int baseport;
   struct tty *tty;
-  int i, q;
-
+  int ch;
   char log[BUFLEN];
   int saved_eflags;        /* old cpu control/status reg, so can restore it */
+  int i = 0;
 
   baseport = devtab[dev].dvbaseport; /* hardware addr from devtab */
   tty = (struct tty *)devtab[dev].dvdata;   /* software data for line */
 
   /* In this function we are reading items off the Q */
-  for (i = 0; i < nchar; i++) {
+  while (i < nchar) {
     saved_eflags = get_eflags();
     cli();			                   /* disable ints in CPU */
-    if((q = dequeue(&RX_queue)) != EMPTYQUE){
-      buf[i] = q;
+    if((ch = dequeue(&RX_queue)) != EMPTYQUE){
+      buf[i] = ch;
+      sprintf(log, ">%c", buf[i]);
+      debug_log(log);
+      i++;
     }
-    sprintf(log, ">%c", buf[i]);
-    debug_log(log);
     set_eflags(saved_eflags);     /* back to previous CPU int. status */
   }
-
-  return nchar;       /* but should wait for rest of nchar chars if nec. */
-  /* this is something for you to correct */
+  return nchar;
 }
 
 /*====================================================================
@@ -126,22 +125,23 @@ int ttywrite(int dev, char *buf, int nchar)
 {
   int baseport;
   struct tty *tty;
-  int i;
   char log[BUFLEN];
+  int i = 0;
 
   baseport = devtab[dev].dvbaseport; /* hardware addr from devtab */
   tty = (struct tty *)devtab[dev].dvdata;   /* software data for line */
 
-  for (i = 0; i < nchar; i++) {
-    cli();
+  cli();
+  while (i < nchar) {
     //enqueue returns FULLQUE if queue is full
     if(enqueue(&TX_queue, buf[i]) != FULLQUE){
         //take a byte from buf and enqueue in TX
         outpt(baseport+UART_IER, UART_IER_THRI);
         // kick start TX interrupt
+        sprintf(log,"<%c", buf[i]); /* record input char-- */
+        debug_log(log);
+        i++;
     }
-    sprintf(log,"<%c", buf[i]); /* record input char-- */
-    debug_log(log);
     sti();
   }
   return nchar;
@@ -180,6 +180,30 @@ void irq3inthandc()
 }
 
 void irqinthandc(int dev){
+  // int ch;
+  // struct tty *tty = (struct tty *)(devtab[dev].dvdata);
+  // int baseport = devtab[dev].dvbaseport; /* hardware i/o port */;
+  // unsigned char lsr;
+  //
+  // pic_end_int();                /* notify PIC that its part is done */
+  // debug_log("*");
+  // lsr = inpt(baseport+UART_LSR);
+  //
+  // if (lsr & UART_LSR_DR) {		/* handling recieve interrupt */
+  //   ch = inpt(baseport+UART_RX);	/* read char, ask the device */
+  //   enqueue(&RX_queue, ch);
+  //   if (tty->echoflag)	enqueue(&ECHO_queue, ch);
+  // }
+  // if (lsr & UART_LSR_THRE) {	/* handling transmit interrupt */
+  //   if (queuecount(&ECHO_queue))	outpt(baseport+UART_TX, dequeue(&ECHO_queue));
+  //   if (queuecount(&TX_queue)) {
+  //    ch = dequeue(&TX_queue);
+  //    outpt(baseport + UART_TX, ch);
+  //   }
+  // }
+  // outpt(baseport+UART_IER, UART_IER_RDI);
+
+
   int ch;
   struct tty *tty = (struct tty *)(devtab[dev].dvdata);
   int baseport = devtab[dev].dvbaseport; /* hardware i/o port */;
@@ -201,7 +225,6 @@ void irqinthandc(int dev){
   }
   outpt(baseport+UART_IER, UART_IER_RDI);
   /* enable receives again*/
-
 }
 
 /* append msg to memory log */
