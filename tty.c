@@ -133,14 +133,16 @@ int ttywrite(int dev, char *buf, int nchar)
   tty = (struct tty *)devtab[dev].dvdata;   /* software data for line */
 
   for (i = 0; i < nchar; i++) {
+    cli();
     //enqueue returns FULLQUE if queue is full
     if(enqueue(&TX_queue, buf[i]) != FULLQUE){
         //take a byte from buf and enqueue in TX
-        outpt(baseport+UART_IER)
+        outpt(baseport+UART_IER, UART_IER_THRI)
+        // kick start TX interrupt
     }
     sprintf(log,"<%c", buf[i]); /* record input char-- */
     debug_log(log);
-    
+    sti();
   }
   return nchar;
 }
