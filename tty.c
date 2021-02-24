@@ -179,31 +179,33 @@ void irq3inthandc()
   irqinthandc(TTY1);
 }
 
+// void irqinthandc(int dev){
+//   int ch;
+//   struct tty *tty = (struct tty *)(devtab[dev].dvdata);
+//   int baseport = devtab[dev].dvbaseport; /* hardware i/o port */;
+//   unsigned char lsr;
+//
+//   pic_end_int();                /* notify PIC that its part is done */
+//   debug_log("*");
+//   lsr = inpt(baseport+UART_LSR);
+//
+//   if (lsr & UART_LSR_DR) {		/* handling recieve interrupt */
+//     ch = inpt(baseport+UART_RX);	/* read char, ask the device */
+//     enqueue(&RX_queue, ch);
+//     if (tty->echoflag)	enqueue(&ECHO_queue, ch);
+//   }
+//   if (lsr & UART_LSR_THRE) {	/* handling transmit interrupt */
+//     if (queuecount(&ECHO_queue))	outpt(baseport+UART_TX, dequeue(&ECHO_queue));
+//     if (queuecount(&TX_queue)) {
+//      ch = dequeue(&TX_queue);
+//      outpt(baseport + UART_TX, ch);
+//     }
+//   }
+//   outpt(baseport+UART_IER, UART_IER_RDI);
+//
+// }
+
 void irqinthandc(int dev){
-  // int ch;
-  // struct tty *tty = (struct tty *)(devtab[dev].dvdata);
-  // int baseport = devtab[dev].dvbaseport; /* hardware i/o port */;
-  // unsigned char lsr;
-  //
-  // pic_end_int();                /* notify PIC that its part is done */
-  // debug_log("*");
-  // lsr = inpt(baseport+UART_LSR);
-  //
-  // if (lsr & UART_LSR_DR) {		/* handling recieve interrupt */
-  //   ch = inpt(baseport+UART_RX);	/* read char, ask the device */
-  //   enqueue(&RX_queue, ch);
-  //   if (tty->echoflag)	enqueue(&ECHO_queue, ch);
-  // }
-  // if (lsr & UART_LSR_THRE) {	/* handling transmit interrupt */
-  //   if (queuecount(&ECHO_queue))	outpt(baseport+UART_TX, dequeue(&ECHO_queue));
-  //   if (queuecount(&TX_queue)) {
-  //    ch = dequeue(&TX_queue);
-  //    outpt(baseport + UART_TX, ch);
-  //   }
-  // }
-  // outpt(baseport+UART_IER, UART_IER_RDI);
-
-
   int ch;
   struct tty *tty = (struct tty *)(devtab[dev].dvdata);
   int baseport = devtab[dev].dvbaseport; /* hardware i/o port */;
@@ -221,8 +223,10 @@ void irqinthandc(int dev){
   if (iir & UART_IIR_THRI) {
     // check echo queue and echo characters on TX ISR
     if (queuecount(&ECHO_queue)) outpt(baseport+UART_TX, dequeue(&ECHO_queue));
-    if ((ch = dequeue(&TX_queue)) != EMPTYQUE)
+    if (queuecount(&TX_queue)) {
+      ch = dequeue(&TX_queue);
       outpt(baseport+UART_TX, ch);
+    }
   }
   outpt(baseport+UART_IER, UART_IER_RDI);
   /* enable receiver interrupts again*/
