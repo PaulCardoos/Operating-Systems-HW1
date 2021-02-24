@@ -47,12 +47,12 @@ void debug_log(char *);
 *       tty specific initialization routine for COM devices         *
 ====================================================================*/
 
+Queue RX_queue, TX_queue, ECHO_queue; /* declare queues globally*/
+
 void ttyinit(int dev)
 {
   int baseport;
   struct tty *tty;		/* ptr to tty software params/data block */
-
-  Queue RX_queue, TX_queue, ECHO_queue; /* declare queues */
 
   /* Initialize queues */
   init_queue(&RX_queue, MAXBUF);
@@ -98,7 +98,7 @@ int ttyread(int dev, char *buf, int nchar)
   tty = (struct tty *)devtab[dev].dvdata;   /* software data for line */
 
   /* In this function we are reading items off the Q */
-  for (i = 0; i < nchars; i++) {
+  for (i = 0; i < nchar; i++) {
     saved_eflags = get_eflags();
     cli();			                   /* disable ints in CPU */
     if((q = dequeue(&RX_queue)) != EMPTYQUE){
@@ -109,7 +109,7 @@ int ttyread(int dev, char *buf, int nchar)
     set_eflags(saved_eflags);     /* back to previous CPU int. status */
   }
 
-  return nchars;       /* but should wait for rest of nchar chars if nec. */
+  return nchar;       /* but should wait for rest of nchar chars if nec. */
   /* this is something for you to correct */
 }
 
@@ -126,7 +126,7 @@ int ttywrite(int dev, char *buf, int nchar)
 {
   int baseport;
   struct tty *tty;
-  int i, q;
+  int i;
   char log[BUFLEN];
 
   baseport = devtab[dev].dvbaseport; /* hardware addr from devtab */
@@ -137,7 +137,7 @@ int ttywrite(int dev, char *buf, int nchar)
     //enqueue returns FULLQUE if queue is full
     if(enqueue(&TX_queue, buf[i]) != FULLQUE){
         //take a byte from buf and enqueue in TX
-        outpt(baseport+UART_IER, UART_IER_THRI)
+        outpt(baseport+UART_IER, UART_IER_THRI);
         // kick start TX interrupt
     }
     sprintf(log,"<%c", buf[i]); /* record input char-- */
@@ -183,18 +183,25 @@ void irqinthandc(int dev){
   int ch;
   struct tty *tty = (struct tty *)(devtab[dev].dvdata);
   int baseport = devtab[dev].dvbaseport; /* hardware i/o port */;
+  int iir = inpt(baseport+UART_IIR);
 
   pic_end_int();                /* notify PIC that its part is done */
   debug_log("*");
+
   ch = inpt(baseport+UART_RX);	/* read char, ack the device */
-  if (tty->rnum < MAXBUF) {   /* if space left in ring buffer */
-    tty->rnum++;                 /* increase character count */
-    tty->rbuf[tty->rin++] = ch; /* put char in ibuf, step ptr */
-    if (tty->rin >= MAXBUF)     /* check if we need to wrap-around */
-      tty->rin = 0;              /* and reset as appropriate */
-  }
   if (tty->echoflag)             /* if echoing wanted */
     outpt(baseport+UART_TX,ch);   /* echo char: see note above */
+
+  if (iir & UART_IIR_RDI) {
+    enqueue(&RX_queue, ch);
+  }
+  if (iir & UART_IIR_THRI) {
+    if ((ch = dequeue(&TX_queue)) != EMPTYQUE)
+      outpt(baseport+UART_TX, ch);
+  }
+  outpt(baseport+UART_IER, UART_IER_RDI);
+  /* enable receives again*/
+
 }
 
 /* append msg to memory log */
