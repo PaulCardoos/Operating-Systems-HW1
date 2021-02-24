@@ -212,19 +212,20 @@ void irqinthandc(int dev){
   pic_end_int();                /* notify PIC that its part is done */
   debug_log("*");
 
-  ch = inpt(baseport+UART_RX);	/* read char, ack the device */
-  if (tty->echoflag)             /* if echoing wanted */
-    outpt(baseport+UART_TX,ch);   /* echo char: see note above */
-
   if (iir & UART_IIR_RDI) {
-    enqueue(&RX_queue, ch);
+    ch = inpt(baseport+UART_RX);
+    enqueue(&RX_queue, ch); // add to input queue
+    if (tty->echoflag) enqueue(&ECHO_queue, ch); // add to echo queue
   }
+
   if (iir & UART_IIR_THRI) {
+    // check echo queue and echo characters on TX ISR
+    if (queuecount(&ECHO_queue)) outpt(baseport+UART_TX, dequeue(&ECHO_queue));
     if ((ch = dequeue(&TX_queue)) != EMPTYQUE)
       outpt(baseport+UART_TX, ch);
   }
   outpt(baseport+UART_IER, UART_IER_RDI);
-  /* enable receives again*/
+  /* enable receiver interrupts again*/
 }
 
 /* append msg to memory log */
