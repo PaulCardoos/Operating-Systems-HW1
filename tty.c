@@ -100,7 +100,7 @@ int ttyread(int dev, char *buf, int nchar)
   /* In this function we are reading items off the Q */
   for (i = 0; i < nchars; i++) {
     saved_eflags = get_eflags();
-    cli();			/* disable ints in CPU */
+    cli();			                   /* disable ints in CPU */
     if((q = dequeue(&RX_queue)) != EMPTYQUE){
       buf[i] = q;
     }
@@ -134,16 +134,13 @@ int ttywrite(int dev, char *buf, int nchar)
 
   for (i = 0; i < nchar; i++) {
     //enqueue returns FULLQUE if queue is full
-    q = enqueue(&TX_queue, buf[i]);
-    if(q != FULLQUE){
+    if(enqueue(&TX_queue, buf[i]) != FULLQUE){
         //take a byte from buf and enqueue in TX
+        outpt(baseport+UART_IER)
     }
     sprintf(log,"<%c", buf[i]); /* record input char-- */
     debug_log(log);
-    tty -> tbuf[tty -> tin++] = buf[i];
-    tty -> tnum++;
-    if (tty -> tin >= MAXBUF) tty -> tin = 0;
-    putc(dev + 1, buf[i]);	/* we will delete this function and make sure it works with an interruptt-----------------use lib for now--replace this! */
+    
   }
   return nchar;
 }
