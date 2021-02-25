@@ -15,7 +15,6 @@
 
 #ifndef TTY_H
 #define TTY_H
-#include "queue/queue.h"
 #define MAXBUF 6
 
 struct tty {

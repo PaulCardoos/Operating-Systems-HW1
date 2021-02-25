@@ -97,8 +97,8 @@ int ttyread(int dev, char *buf, int nchar)
   baseport = devtab[dev].dvbaseport; /* hardware addr from devtab */
   tty = (struct tty *)devtab[dev].dvdata;   /* software data for line */
 
-  /* In this function we are reading items off the Q */
   while (i < nchar) {
+    /* Loop indefinetely until nchars are entered in */
     saved_eflags = get_eflags();
     cli();			                   /* disable ints in CPU */
     if((ch = dequeue(&RX_queue)) != EMPTYQUE){
@@ -203,8 +203,7 @@ void irqinthandc(int dev){
     default:
       debug_log("#");
   }
-  outpt(baseport+UART_IER, UART_IER_RDI);
-  /* enable receiver interrupts again*/
+  outpt(baseport+UART_IER, UART_IER_RDI); /* enable receiver interrupts again*/
 }
 
 /* append msg to memory log */
