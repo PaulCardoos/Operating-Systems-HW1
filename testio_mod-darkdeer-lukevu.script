@@ -1,0 +1,76 @@
+Script started on Wed 24 Feb 2021 08:42:45 PM EST
+]0;tuser@tutor-vserver: ~tuser@tutor-vserver:~$ exitclearmtip -f testio.lnx scp lukevu@users.cs.umb.edu:cs444/hw1_part2/hw1/*.lnx .
+lukevu@users.cs.umb.edu's password: 
+testio.lnx                                                                                                                                                        0%    0     0.0KB/s   --:-- ETAtestio.lnx                                                                                                                                                      100%   46KB  46.4KB/s   00:00    
+]0;tuser@tutor-vserver: ~tuser@tutor-vserver:~$ m[Kscp lukevu@users.cs.umb.edu:cs444/hw1_part2/hw1/*.lnx .[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cexit[Kclearmtip -f testio.lnx 
+For command help, type ~?
+For help on args, rerun without args
+Code starts at 0x100100
+Using board # 1 
+~downloading testio.lnx
+
+...........Done.
+
+Download done, setting EIP to 100100.
+Tutor> go 100100
+Running with device TTY1
+
+Trying simple write(4 chars)...
+hi!
+write of 4 returned 4
+<doing delay>
+Trying longer write (9 chars)
+abcdefghiwrite of 9 returned 9
+<doing delay>
+
+Trying write of 80-char string...
+AABBCCDDEEFFGGHHIIJJKKLLMMNNOOPPQQRRSSTTUUVVWWXXYYZZ[[\\]]^^__``aabbccddeeffgghh
+write returned 80
+<doing delay>
+
+Type 10 chars input to test typeahead while looping for delay...
+<doing delay>
+helloworld
+Got 10 chars into buf. Trying write of buf...
+helloworld
+Trying another 10 chars read right away...
+1234567890
+Got 10 chars on second read
+1234567890
+
+Now turning echo off--
+
+Type 20 chars input, note lack of echoes...
+<doing delay>
+
+Trying write of buf...
+heelloworld123456789
+Asked for 20 characters; got 20
+Exception 3 at EIP=00100110: Breakpoint
+Tutor> md 300000
+00300000    3c 68 2a 2a 3c 69 2a 3c 21 2a 3c 0a 3c 61 2a 2a <h**<i*<!*<.<a**
+Tutor> 
+00300010    3c 62 2a 3c 63 2a 3c 64 2a 3c 65 2a 3c 66 2a 3c <b*<c*<d*<e*<f*<
+Tutor> 
+00300020    67 2a 3c 68 2a 3c 69 3c 41 2a 2a 3c 41 2a 3c 42 g*<h*<i<A**<A*<B
+Tutor> 
+00300030    2a 3c 42 2a 3c 43 2a 3c 43 2a 3c 44 2a 3c 44 2a *<B*<C*<C*<D*<D*
+Tutor> 
+00300040    3c 45 2a 3c 45 2a 3c 46 2a 3c 46 2a 3c 47 2a 3c <E*<E*<F*<F*<G*<
+Tutor> 
+00300050    47 2a 3c 48 2a 3c 48 2a 3c 49 2a 3c 49 2a 3c 4a G*<H*<H*<I*<I*<J
+Tutor> 
+00300060    2a 3c 4a 2a 3c 4b 2a 3c 4b 2a 3c 4c 2a 3c 4c 2a *<J*<K*<K*<L*<L*
+Tutor> 
+00300070    3c 4d 2a 3c 4d 2a 3c 4e 2a 3c 4e 2a 3c 4f 2a 3c <M*<M*<N*<N*<O*<
+Tutor> 
+00300080    4f 2a 3c 50 2a 3c 50 2a 3c 51 2a 3c 51 2a 3c 52 O*<P*<P*<Q*<Q*<R
+Tutor> 
+00300090    2a 3c 52 2a 3c 53 2a 3c 53 2a 3c 54 2a 3c 54 2a *<R*<S*<S*<T*<T*
+Tutor> ~q 
+Quit handler: 
+killing process 1864 Leaving board #1
+]0;tuser@tutor-vserver: ~tuser@tutor-vserver:~$ exit
+exit
+
+Script done on Wed 24 Feb 2021 08:44:47 PM EST
