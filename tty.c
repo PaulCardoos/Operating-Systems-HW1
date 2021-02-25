@@ -87,10 +87,9 @@ void ttyinit(int dev)
 
 int ttyread(int dev, char *buf, int nchar)
 {
-  int baseport, ch, saved_eflags, i;
+  int ch, saved_eflags, i;
   char log[BUFLEN];
 
-  baseport = devtab[dev].dvbaseport; /* hardware addr from devtab */
   i = 0;
 
   while (i < nchar) {
