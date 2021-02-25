@@ -2,14 +2,13 @@
 *
 *       file:           tty.c
 *       author:         betty o'neil
+*                       paul cardoos
+*                       luke vu
 *
 *       tty driver--device-specific routines for ttys
 *
-*
-*
-*
-*
-*
+*       2/24/2021 - implemented writes with interrupts
+*                 - implemented read/writes with queues
 *
 */
 #include <stdio.h>  /* for kprintf prototype */
@@ -31,6 +30,9 @@ struct tty ttytab[NTTYS];        /* software params/data for each SLU dev */
 char *debug_log_area = (char *)DEBUG_AREA;
 char *debug_record;  /* current pointer into log area */
 
+/* declare queues*/
+Queue inQueue, outQueue, echoQueue;
+
 /* tell C about the assembler shell routines */
 extern void irq3inthand(void), irq4inthand(void);
 
@@ -47,17 +49,15 @@ void debug_log(char *);
 *       tty specific initialization routine for COM devices         *
 ====================================================================*/
 
-Queue RX_queue, TX_queue, ECHO_queue; /* declare queues globally*/
-
 void ttyinit(int dev)
 {
   int baseport;
   struct tty *tty;		/* ptr to tty software params/data block */
 
   /* Initialize queues */
-  init_queue(&RX_queue, MAXBUF);
-  init_queue(&TX_queue, MAXBUF);
-  init_queue(&ECHO_queue, MAXBUF);
+  init_queue(&inQueue, MAXBUF);
+  init_queue(&outQueue, MAXBUF);
+  init_queue(&echoQueue, MAXBUF);
 
   debug_record = debug_log_area; /* clear debug log */
   baseport = devtab[dev].dvbaseport; /* pick up hardware addr */
@@ -87,23 +87,19 @@ void ttyinit(int dev)
 
 int ttyread(int dev, char *buf, int nchar)
 {
-  int baseport;
-  struct tty *tty;
-  int ch;
+  int baseport, ch, saved_eflags, i;
   char log[BUFLEN];
-  int saved_eflags;        /* old cpu control/status reg, so can restore it */
-  int i = 0;
 
   baseport = devtab[dev].dvbaseport; /* hardware addr from devtab */
-  tty = (struct tty *)devtab[dev].dvdata;   /* software data for line */
+  i = 0;
 
   while (i < nchar) {
-    /* Loop indefinetely until nchars are entered in */
+    /* Loop indefinetely until nchar are entered in */
     saved_eflags = get_eflags();
     cli();			                   /* disable ints in CPU */
-    if((ch = dequeue(&RX_queue)) != EMPTYQUE){
+    if((ch = dequeue(&inQueue)) != EMPTYQUE){
       buf[i] = ch;
-      sprintf(log, ">%c", buf[i]);
+      sprintf(log, ">%c", buf[i]); /* record input char-- */
       debug_log(log);
       i++;
     }
@@ -123,21 +119,17 @@ int ttyread(int dev, char *buf, int nchar)
 
 int ttywrite(int dev, char *buf, int nchar)
 {
-  int baseport;
-  struct tty *tty;
+  int baseport, i;
   char log[BUFLEN];
-  int i = 0;
 
   baseport = devtab[dev].dvbaseport; /* hardware addr from devtab */
-  tty = (struct tty *)devtab[dev].dvdata;   /* software data for line */
+  i = 0;
 
   cli();
   while (i < nchar) {
-    //enqueue returns FULLQUE if queue is full
-    if(enqueue(&TX_queue, buf[i]) != FULLQUE){
-        //take a byte from buf and enqueue in TX
+    if(enqueue(&outQueue, buf[i]) != FULLQUE){
         outpt(baseport+UART_IER, UART_IER_THRI);
-        // kick start TX interrupt
+        /* kick start TX interrupt */
         sprintf(log,"<%c", buf[i]); /* record input char-- */
         debug_log(log);
         i++;
@@ -180,26 +172,31 @@ void irq3inthandc()
 }
 
 void irqinthandc(int dev){
-  int ch;
+  int ch, baseport, iir;
+
   struct tty *tty = (struct tty *)(devtab[dev].dvdata);
-  int baseport = devtab[dev].dvbaseport; /* hardware i/o port */;
-  int iir = inpt(baseport+UART_IIR);
+
+  baseport = devtab[dev].dvbaseport; /* hardware i/o port */;
+  iir = inpt(baseport+UART_IIR);
 
   pic_end_int();                /* notify PIC that its part is done */
   debug_log("*");
+
   switch (iir & UART_IIR_ID) {
     case UART_IIR_RDI:
       ch = inpt(baseport+UART_RX);
-      enqueue(&RX_queue, ch); // add to input queue
-      if (tty->echoflag) enqueue(&ECHO_queue, ch); // add to echo queue
+      enqueue(&inQueue, ch); // add to input queue
+      if (tty->echoflag)
+        enqueue(&echoQueue, ch); // add to echo queue
+
     case UART_IIR_THRI:
-      if (queuecount(&ECHO_queue))
-        outpt(baseport+UART_TX, dequeue(&ECHO_queue));
-      if (queuecount(&TX_queue)) {
-        ch = dequeue(&TX_queue);
-        outpt(baseport+UART_TX, ch);
+      if (queuecount(&echoQueue))
+        outpt(baseport+UART_TX, dequeue(&echoQueue));
+      if (queuecount(&outQueue)) {
+        outpt(baseport+UART_TX, dequeue(&outQueue));
       }
         break;
+
     default:
       debug_log("#");
   }

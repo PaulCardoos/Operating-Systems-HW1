@@ -6,10 +6,7 @@
 *       private header file for tty drivers
 *       apps should not include this header
 *
-*       2/23/2021
-*       imported queue
-*       removed uncessary circular buffer variables
-*
+*       2/24/2021 - removed circular buffer logic
 *
 */
 
